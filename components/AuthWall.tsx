@@ -8,7 +8,7 @@ export default function AuthWall() {
     <TerminalPanel 
       title="AUTH_WALL" 
       className="max-w-md mx-auto p-10 text-center relative overflow-hidden group cursor-pointer" 
-      onClick={() => signIn()}
+      onClick={() => signIn("google")}
     >
         <div className="absolute inset-0 bg-green-500/10 opacity-0 group-hover:opacity-100 transition-opacity" />
         <h2 className="text-2xl font-bold mb-6 group-hover:text-green-400 transition-colors">ACCESS RESTRICTED</h2>

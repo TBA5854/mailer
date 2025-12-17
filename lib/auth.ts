@@ -10,12 +10,24 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID || "placeholder", // Prevent crash during build if env missing
       clientSecret: process.env.GOOGLE_CLIENT_SECRET || "placeholder",
+      httpOptions: {
+        timeout: 10000,
+      }
     }),
   ],
+  session: {
+    strategy: "jwt",
+  },
   callbacks: {
-    session: async ({ session, user }) => {
+    jwt: async ({ token, user }) => {
+      if (user) {
+        token.id = user.id;
+      }
+      return token;
+    },
+    session: async ({ session, token }) => {
       if (session?.user) {
-        session.user.id = user.id;
+        session.user.id = token.id as string;
       }
       return session;
     }
