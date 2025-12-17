@@ -11,11 +11,11 @@ export async function GET() {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const batches = await prisma.batch.findMany({
-    where: { ownerId: session.user.id },
-    include: { template: true, sender: true },
-    orderBy: { createdAt: 'desc' },
-  });
+    const batches = await prisma.batch.findMany({
+        where: { ownerId: session.user.id },
+        include: { sender: true, template: true },
+        orderBy: { createdAt: 'desc' }
+    });
 
   return NextResponse.json(batches);
 }

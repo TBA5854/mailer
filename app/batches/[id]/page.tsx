@@ -44,34 +44,42 @@ export default function BatchDetailsPage({ params }: { params: Promise<{ id: str
           let match;
           while ((match = regex.exec(data.template.htmlContent)) !== null) vars.add(match[1]);
           while ((match = regex.exec(data.template.subject)) !== null) vars.add(match[1]);
-          vars.delete('email'); // automated field
-          setRequiredVars(Array.from(vars));
+          
+          // Case-insensitive dedup
+          const normalized = new Set<string>();
+          vars.forEach(v => {
+              if (v.toLowerCase() !== 'email') normalized.add(v);
+          });
+          
+          setRequiredVars(Array.from(normalized));
       }
     }
   };
 
   useEffect(() => {
     fetchBatch();
-    const interval = setInterval(fetchBatch, 5000); // 5s poll for status/bounces
-    
-    // Also poll bounce endpoint explicitly to trigger backend check
-    const bouncePoll = setInterval(async () => {
-        if (!batch?.senderId) return;
-         try {
-             const res = await fetch('/api/bounces/check', {
+    const interval = setInterval(fetchBatch, 60000); // 1m poll for status/bounces
+    return () => { clearInterval(interval); };
+  }, [id, batch?.senderId]);
+
+  const handleManualSync = async () => {
+      setActiveLog("MANUAL_SYNC_INITIATED...");
+      await fetchBatch();
+      if (batch?.senderId) {
+          try {
+             setActiveLog("CHECKING_BOUNCES...");
+             await fetch('/api/bounces/check', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ senderId: batch.senderId })
              });
-             const data = await res.json();
-             if (data.bouncedCount > 0) {
-                 fetchBatch(); // Refresh UI if bounces found
-             }
-         } catch(e) { console.error("Bounce Poll Error", e); }
-    }, 5000);
-
-    return () => { clearInterval(interval); clearInterval(bouncePoll); };
-  }, [id, batch?.senderId]);
+             await fetchBatch();
+             setActiveLog("SYNC_COMPLETE.");
+          } catch(e) { 
+              setActiveLog("SYNC_ERROR: " + e);
+          }
+      }
+  };
 
   const startStreaming = () => {
     if (isStreaming) return;
@@ -164,13 +172,18 @@ export default function BatchDetailsPage({ params }: { params: Promise<{ id: str
      // ... (parsing logic)
      const headers = lines[0].split(',').map(h => h.trim());
      
-     if (!headers.includes('email')) {
+     // Normalize headers
+     const normalizedHeaders = headers.map(h => h.toLowerCase());
+     
+     if (!normalizedHeaders.includes('email')) {
          alert("CSV must contain 'email' header");
          setIsSubmitting(false);
          return;
      }
 
-     // Validate Required Vars
+     // Validate Required Vars (Case Sensitive Matching usually preferred for vars, but let's be loose if needed)
+     // Actually for vars replacement we usually want exact match, but let's just check existence.
+     // If template has {{Name}}, csv must have Name.
      const missing = requiredVars.filter(v => !headers.includes(v));
      if (missing.length > 0) {
          alert(`Missing required columns: ${missing.join(', ')}`);
@@ -257,22 +270,22 @@ export default function BatchDetailsPage({ params }: { params: Promise<{ id: str
 
   return (
     <div className="max-w-6xl mx-auto space-y-8 pb-20">
-      <div className="flex justify-between items-center bg-black p-6 border-b-2 border-green-900 sticky top-4 z-10">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center bg-black p-6 border-b-2 border-green-900 sticky top-4 z-10 gap-4">
         <div>
            <h1 className="text-2xl font-bold font-mono text-green-500 tracking-wider">BATCH: {batch.sender?.label}</h1>
            <p className="text-green-800 text-sm font-mono mt-1">{'>'} {activeLog}</p>
         </div>
         
-        <div className="flex space-x-4">
+        <div className="flex flex-col md:flex-row space-y-4 md:space-y-0 md:space-x-4 items-end md:items-center">
             <GlitchButton variant="ghost" onClick={() => setIsAdding(!isAdding)}>
-                {isAdding ? 'CANCEL_INJECTION' : 'INJECT_TARGETS'}
+                {isAdding ? 'CANCEL' : 'INJECT'}
             </GlitchButton>
 
             {(batch.status !== 'COMPLETED' || batch.failureCount > 0) && !isStreaming ? (
        <div className="flex flex-col items-end">
         <div className="flex gap-4">
              <GlitchButton onClick={startStreaming}>
-                 {batch.status === 'COMPLETED' ? 'RETRY_FAILURES' : 'ENGAGE_TRANSMITTER'}
+                 {batch.status === 'COMPLETED' ? 'RETRY_FAIL' : 'ENGAGE'}
              </GlitchButton>
         </div>
         
@@ -282,12 +295,17 @@ export default function BatchDetailsPage({ params }: { params: Promise<{ id: str
                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
                <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
             </span>
-            BOUNCE_MONITOR: ACTIVE [AUTO_POLL: 5s]
+            BOUNCE_MON: ACTIVE [60s]
+        </div>
+        <div className="mt-1 flex justify-end">
+            <button onClick={handleManualSync} className="text-[10px] text-green-600 hover:text-green-400 font-mono border border-green-900 px-1 uppercase hover:bg-green-900/30">
+                [SYNC]
+            </button>
         </div>
        </div>
             ) : (
             <div className={`px-4 py-2 font-mono text-sm border ${isStreaming ? 'border-green-500 text-green-500 animate-pulse' : 'border-green-900 text-green-800'}`}>
-                {isStreaming ? 'TRANSMISSON_ACTIVE...' : batch.status === 'COMPLETED' && batch.failureCount === 0 ? 'MISSION_COMPLETE' : batch.status}
+                {isStreaming ? 'TRANSMITTING...' : batch.status === 'COMPLETED' && batch.failureCount === 0 ? 'COMPLETE' : batch.status}
             </div>
             )}
         </div>
@@ -297,6 +315,7 @@ export default function BatchDetailsPage({ params }: { params: Promise<{ id: str
           <TerminalPanel title="TARGET_INJECTION_PROTOCOL">
               <div className="mb-2 p-2 border border-green-800 bg-green-900/20 text-green-400 text-xs font-mono">
                   REQUIRED_HEADERS: email{requiredVars.length > 0 ? ', ' + requiredVars.join(', ') : ''}
+                  <br/><span className="opacity-70 mt-1 block">HEADERS_MUST_MATCH_VARIABLES</span>
               </div>
               <textarea 
                className="w-full px-4 py-2 bg-black border-2 border-green-800 rounded-none focus:border-green-400 outline-none font-mono text-xs h-32 text-green-400 placeholder-green-900 mb-4"
@@ -325,7 +344,7 @@ export default function BatchDetailsPage({ params }: { params: Promise<{ id: str
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-4 text-center">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
         <TerminalPanel title="TOTAL_TARGETS">
           <div className="text-4xl font-bold text-green-400 font-mono my-2">{batch.totalRecipients}</div>
         </TerminalPanel>
@@ -360,60 +379,64 @@ export default function BatchDetailsPage({ params }: { params: Promise<{ id: str
       )}
 
       <TerminalPanel title="RECIPIENT_LOG" className="p-0 overflow-hidden">
-        <div className="p-4 border-b border-green-900 bg-green-900/10 font-mono text-green-600 text-xs grid grid-cols-12 gap-2 font-bold tracking-wider">
-            <div className="col-span-1">ID</div>
-            <div className="col-span-6">TARGET_EMAIL</div>
-            <div className="col-span-3">STATUS_CODE</div>
-            <div className="col-span-2 text-right">ACTION</div>
-        </div>
-        
-        <div className="divide-y divide-green-900/30">
-            {recipients.map((r, i) => (
-                <div key={r.id} className="group hover:bg-green-900/10 transition duration-150">
-                    <div className="p-3 grid grid-cols-12 gap-2 items-center cursor-pointer font-mono text-sm">
-                        <div className="col-span-1 text-green-800" onClick={() => toggleExpand(r.id)}>{String(i + 1).padStart(3, '0')}</div>
-                        <div className="col-span-6 text-green-400 truncate tracking-wide">
-                            {editingId === r.id ? (
-                                <input 
-                                    className="bg-black border border-green-500 text-green-500 px-2 py-1 w-full outline-none"
-                                    value={editEmail}
-                                    onChange={e => setEditEmail(e.target.value)}
-                                    onClick={e => e.stopPropagation()}
-                                />
-                            ) : (
-                                <span onClick={() => toggleExpand(r.id)}>{r.email}</span>
-                            )}
-                        </div>
-                        <div className="col-span-3" onClick={() => toggleExpand(r.id)}>
-                            <span className={`
-                                ${r.status === 'SENT' ? 'text-green-500' :
-                                  r.status === 'FAILED' ? 'text-red-500' :
-                                  'text-green-800'}
-                            `}>
-                                [{r.status}]
-                            </span>
-                        </div>
-                        <div className="col-span-2 text-right flex justify-end items-center">
-                            <button onClick={(e) => { e.stopPropagation(); showPreview(r); }} className="text-blue-500 hover:text-blue-300 mr-2 opacity-0 group-hover:opacity-100 transition text-xs tracking-tighter">[PREVIEW]</button>
-                            {editingId === r.id ? (
-                                <button onClick={() => saveEdit(r)} className="text-green-500 hover:text-green-300">[SAVE]</button>
-                            ) : (
-                                (r.status === 'PENDING' || r.status === 'FAILED') && (
-                                    <button onClick={() => startEdit(r)} className="text-green-700 hover:text-green-500 opacity-0 group-hover:opacity-100 transition">
-                                        [EDIT]
-                                    </button>
-                                )
-                            )}
-                        </div>
-                    </div>
-                    {/* Details Dropdown */}
-                    {(expandedId === r.id || r.status === 'FAILED') && r.errorDetails && !editingId && (
-                        <div className="bg-red-900/20 p-4 text-xs text-red-400 font-mono border-l-2 border-red-500 ml-4 mb-2 mr-4">
-                            <strong className="text-red-600">ERR_TRACE:</strong> {DOMPurify.sanitize(r.errorDetails)}
-                        </div>
-                    )}
+        <div className="overflow-x-auto">
+            <div className="min-w-[700px]">
+                <div className="p-4 border-b border-green-900 bg-green-900/10 font-mono text-green-600 text-xs grid grid-cols-12 gap-2 font-bold tracking-wider">
+                    <div className="col-span-1">ID</div>
+                    <div className="col-span-6">TARGET_EMAIL</div>
+                    <div className="col-span-3">STATUS_CODE</div>
+                    <div className="col-span-2 text-right">ACTION</div>
                 </div>
-            ))}
+                
+                <div className="divide-y divide-green-900/30">
+                    {recipients.map((r, i) => (
+                        <div key={r.id} className="group hover:bg-green-900/10 transition duration-150">
+                            <div className="p-3 grid grid-cols-12 gap-2 items-center cursor-pointer font-mono text-sm">
+                                <div className="col-span-1 text-green-800" onClick={() => toggleExpand(r.id)}>{String(i + 1).padStart(3, '0')}</div>
+                                <div className="col-span-6 text-green-400 truncate tracking-wide">
+                                    {editingId === r.id ? (
+                                        <input 
+                                            className="bg-black border border-green-500 text-green-500 px-2 py-1 w-full outline-none"
+                                            value={editEmail}
+                                            onChange={e => setEditEmail(e.target.value)}
+                                            onClick={e => e.stopPropagation()}
+                                        />
+                                    ) : (
+                                        <span onClick={() => toggleExpand(r.id)}>{r.email}</span>
+                                    )}
+                                </div>
+                                <div className="col-span-3" onClick={() => toggleExpand(r.id)}>
+                                    <span className={`
+                                        ${r.status === 'SENT' ? 'text-green-500' :
+                                          r.status === 'FAILED' ? 'text-red-500' :
+                                          'text-green-800'}
+                                    `}>
+                                        [{r.status}]
+                                    </span>
+                                </div>
+                                <div className="col-span-2 text-right flex justify-end items-center">
+                                    <button onClick={(e) => { e.stopPropagation(); showPreview(r); }} className="text-blue-500 hover:text-blue-300 mr-2 opacity-0 group-hover:opacity-100 transition text-xs tracking-tighter">[PREVIEW]</button>
+                                    {editingId === r.id ? (
+                                        <button onClick={() => saveEdit(r)} className="text-green-500 hover:text-green-300">[SAVE]</button>
+                                    ) : (
+                                        (r.status === 'PENDING' || r.status === 'FAILED') && (
+                                            <button onClick={() => startEdit(r)} className="text-green-700 hover:text-green-500 opacity-0 group-hover:opacity-100 transition">
+                                                [EDIT]
+                                            </button>
+                                        )
+                                    )}
+                                </div>
+                            </div>
+                            {/* Details Dropdown */}
+                            {(expandedId === r.id || r.status === 'FAILED') && r.errorDetails && !editingId && (
+                                <div className="bg-red-900/20 p-4 text-xs text-red-400 font-mono border-l-2 border-red-500 ml-4 mb-2 mr-4">
+                                    <strong className="text-red-600">ERR_TRACE:</strong> {DOMPurify.sanitize(r.errorDetails)}
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
       </TerminalPanel>
     </div>

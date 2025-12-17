@@ -3,6 +3,8 @@ import Link from "next/link";
 import { authOptions } from "@/lib/auth";
 import TerminalPanel from "@/components/ui/TerminalPanel";
 import GlitchButton from "@/components/ui/GlitchButton";
+import AuthWall from "@/components/AuthWall";
+import { prisma } from "@/lib/prisma";
 
 export const dynamic = 'force-dynamic';
 
@@ -49,18 +51,12 @@ export default async function Home() {
             </Link>
         </div>
       ) : (
-        <TerminalPanel title="AUTH_WALL" className="max-w-md mx-auto p-10 text-center">
-            <h2 className="text-2xl font-bold mb-6">ACCESS RESTRICTED</h2>
-            <p className="text-green-700 mb-8 font-mono">IDENTIFICATION REQUIRED FOR ENTRY.</p>
-            <div className="inline-block px-4 py-2 border border-red-500 text-red-500 font-mono text-xs animate-pulse">
-                [ACCESS_DENIED]
-            </div>
-        </TerminalPanel>
+        <AuthWall />
       )}
 
       {session && (
         <div className="space-y-8">
-            <RecentBatches />
+            <RecentBatches userId={session.user.id} />
             <div className="flex justify-center gap-4">
                 <Link href="/onboarding">
                     <GlitchButton variant="ghost">OPERATIONAL_GUIDE</GlitchButton>
@@ -75,10 +71,9 @@ export default async function Home() {
   );
 }
 
-import { prisma } from "@/lib/prisma";
-
-async function RecentBatches() {
+async function RecentBatches({ userId }: { userId: string }) {
   const batches = await prisma.batch.findMany({
+    where: { ownerId: userId },
     take: 5,
     orderBy: { createdAt: 'desc' },
     include: {
@@ -91,66 +86,46 @@ async function RecentBatches() {
 
   return (
     <TerminalPanel title="RECENT_TRANSMISSIONS" className="overflow-hidden">
-        <div className="grid grid-cols-12 gap-4 p-4 text-xs font-bold text-green-700 border-b border-green-900 bg-green-900/10 tracking-widest">
-            <div className="col-span-3">TIMESTAMP</div>
-            <div className="col-span-2">PROTOCOL (SENDER)</div>
-            <div className="col-span-4">PAYLOAD (TEMPLATE)</div>
-            <div className="col-span-2">STATUS</div>
-            <div className="col-span-1">LINK</div>
-        </div>
-        <div className="divide-y divide-green-900/30">
-            {batches.map(batch => (
-                <div key={batch.id} className="grid grid-cols-12 gap-4 p-4 text-sm font-mono hover:bg-green-900/10 transition group">
-                    <div className="col-span-3 text-green-600">
-                        {new Date(batch.createdAt).toLocaleString()}
-                    </div>
-                    <div className="col-span-2 text-green-400 truncate">
-                        {batch.sender?.label || 'UNKNOWN'}
-                    </div>
-                    <div className="col-span-4 text-green-300 truncate">
-                        {batch.template?.name || 'UNKNOWN'}
-                    </div>
-                    <div className="col-span-2">
-                        <span className={`
-                             ${batch.status === 'COMPLETED' ? 'text-green-500' : 
-                               batch.status === 'FAILED' ? 'text-red-500' : 'text-yellow-500'}
-                        `}>
-                            [{batch.status}]
-                        </span>
-                        <span className="text-xs text-green-800 ml-2">
-                            {batch.successCount}/{batch.totalRecipients}
-                        </span>
-                    </div>
-                    <div className="col-span-1 text-right">
-                        <Link href={`/batches/${batch.id}`} className="text-green-500 hover:text-green-400 opacity-0 group-hover:opacity-100 transition">
-                            {'>'} VIEW
-                        </Link>
-                    </div>
+        <div className="overflow-x-auto">
+            <div className="min-w-[800px]">
+                <div className="grid grid-cols-12 gap-4 p-4 text-xs font-bold text-green-700 border-b border-green-900 bg-green-900/10 tracking-widest">
+                    <div className="col-span-3">TIMESTAMP</div>
+                    <div className="col-span-2">PROTOCOL (SENDER)</div>
+                    <div className="col-span-4">PAYLOAD (TEMPLATE)</div>
+                    <div className="col-span-2">STATUS</div>
+                    <div className="col-span-1">LINK</div>
                 </div>
-            ))}
+                <div className="divide-y divide-green-900">
+                    {batches.map((batch) => (
+                        <div key={batch.id} className="grid grid-cols-12 gap-4 p-4 text-sm font-mono hover:bg-green-900/5 transition-colors group">
+                            <div className="col-span-3 text-green-600">
+                                {new Date(batch.createdAt).toLocaleDateString()} <span className="opacity-50">{new Date(batch.createdAt).toLocaleTimeString()}</span>
+                            </div>
+                            <div className="col-span-2 text-green-400 group-hover:text-green-300">
+                                {batch.sender?.label}
+                            </div>
+                            <div className="col-span-4 text-green-500 truncate group-hover:text-green-400">
+                                {batch.template?.name}
+                            </div>
+                            <div className="col-span-2">
+                                <span className={`
+                                    ${batch.status === 'COMPLETED' ? 'text-green-500' : ''}
+                                    ${batch.status === 'PENDING' ? 'text-yellow-500 animate-pulse' : ''}
+                                    ${batch.status === 'FAILED' ? 'text-red-500' : ''}
+                                `}>
+                                    [{batch.status}]
+                                </span>
+                            </div>
+                            <div className="col-span-1 text-right">
+                                <Link href={`/batches/${batch.id}`} className="text-green-700 hover:text-green-400 hover:underline">
+                                    {'>'} VIEW
+                                </Link>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            </div>
         </div>
     </TerminalPanel>
   );
-}
-
-function FAQSection() {
-    const FAQs = [
-        { q: "WHAT IF AN AGENT IS COMPROMISED?", a: "SYSTEM AUTOMATICALLY FLAGGED & REVOKES CREDENTIALS UPON DETECTION." },
-        { q: "MAXIMUM TRANSMISSION RATE?", a: "SMTP GATEWAYS THROTTLE AT 500 MSGS/HR PER NODE. DISTRIBUTED NETWORKS BYPASS THIS LIMIT." },
-        { q: "DATA RETENTION POLICY?", a: "LOGS PURGED AFTER 72 HOURS. NO PERMANENT RECORD KEPT ON EDGE NODES." },
-        { q: "MAIL NOT FOUND ERROR?", a: "TARGET ADDRESS INVALID OR BLOCKED (550). CHECK RECIPIENT LOG FOR TRACE." }
-    ];
-
-    return (
-        <TerminalPanel title="SYSTEM_FAQ">
-            <div className="space-y-4 font-mono">
-                {FAQs.map((faq, i) => (
-                    <div key={i} className="border-l-2 border-green-900 pl-4 py-1">
-                        <h3 className="text-green-400 font-bold text-sm mb-1">Q: {faq.q}</h3>
-                        <p className="text-green-700 text-xs">A: {faq.a}</p>
-                    </div>
-                ))}
-            </div>
-        </TerminalPanel>
-    );
 }

@@ -40,15 +40,18 @@ export default function BatchesPage() {
     while ((match = regex.exec(template.htmlContent)) !== null) {
       vars.add(match[1].trim());
     }
-    // Reset regex usage or creating new one is safer if reusing sticky/global but exec loop auto-resets on null. 
-    // However, regex state is per-instance. Let's just create a new one to be paranoid or reset lastIndex manually if we used the same one.
-    // Actually in the original code we reused 'regex'. 
-    // The previous loop exited only when match === null, so lastIndex is 0. It is safe to reuse.
     
     while ((match = regex.exec(template.subject)) !== null) {
         vars.add(match[1].trim());
     }
-    setRequiredVars(Array.from(vars));
+
+    // Normalize and remove email
+    const normalized = new Set<string>();
+    vars.forEach(v => {
+        if (v.toLowerCase() !== 'email') normalized.add(v);
+    });
+
+    setRequiredVars(Array.from(normalized));
   }, [selectedTemplateId, templates]);
 
   const validateAndPreview = () => {
@@ -59,6 +62,13 @@ export default function BatchesPage() {
       return;
     }
     const headers = lines[0].split(',').map(h => h.trim());
+    const normalizedHeaders = headers.map(h => h.toLowerCase());
+
+    if (!normalizedHeaders.includes('email')) {
+        alert("CSV must contain 'email' header");
+        return;
+    }
+
     const recipients = lines.slice(1).map(line => {
       const values = line.split(',').map(v => v.trim());
       const data: any = {};
@@ -67,11 +77,14 @@ export default function BatchesPage() {
     });
     setParsedRecipients(recipients);
 
-    // 2. Validate Template Variables (Using pre-calculated requiredVars)
+    // 2. Validate Template Variables
     const errors: string[] = [];
     requiredVars.forEach(v => {
-      if (!headers.includes(v)) {
-        errors.push(`Missing CSV column for variable: {{${v}}}`);
+      if (!headers.includes(v)) { // Strict check for vars? Or loose? Let's stay strict for custom vars as they are case sensitive in replacement
+         // Actually, let's keep it strict for now as template {{Key}} needs Key in CSV.
+         if (!headers.includes(v)) {
+             errors.push(`Missing CSV column for variable: {{${v}}}`);
+         }
       }
     });
     setValidationErrors(errors);
@@ -147,18 +160,16 @@ export default function BatchesPage() {
 
           <div>
              <label className="block text-sm font-bold mb-2 text-green-700">TARGET_DATA_STREAM (CSV)</label>
-             {requiredVars.length > 0 && (
-                <div className="mb-2 p-2 border border-green-800 bg-green-900/20 text-green-400 text-xs font-mono">
-                    <span className="font-bold">REQUIRED_HEADERS:</span> {requiredVars.join(', ')}
-                </div>
-             )}
+             <div className="mb-2 p-2 border border-green-800 bg-green-900/20 text-green-400 text-xs font-mono">
+                 <span className="font-bold">REQUIRED_HEADERS:</span> email{requiredVars.length > 0 ? ', ' + requiredVars.join(', ') : ''}
+                 <br/><span className="opacity-70 mt-1 block">HEADERS_MUST_MATCH_VARIABLES.</span>
+             </div>
              <textarea 
                className="w-full px-4 py-2 bg-black border-2 border-green-800 rounded-none focus:border-green-400 outline-none font-mono text-xs h-64 text-green-400 placeholder-green-900"
                placeholder={`email, ${requiredVars.length ? requiredVars.join(', ') : 'name'}\nalice@example.com, ...`}
                value={csvContent}
                onChange={e => setCsvContent(e.target.value)}
              />
-             <p className="text-xs text-green-800 mt-2">HEADERS_MUST_MATCH_VARIABLES.</p>
           </div>
 
           <div className="flex justify-end">
