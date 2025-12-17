@@ -115,6 +115,7 @@ model BatchRecipient {
   errorDetails String?
   sentAt       DateTime?
   variables    Json?
+  messageId    String?  @unique // Track Message-ID for bounces
   
   batchId      String
   batch        Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)

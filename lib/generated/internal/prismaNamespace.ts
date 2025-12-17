@@ -1142,6 +1142,7 @@ export const BatchRecipientScalarFieldEnum = {
   errorDetails: 'errorDetails',
   sentAt: 'sentAt',
   variables: 'variables',
+  messageId: 'messageId',
   batchId: 'batchId'
 } as const
 

@@ -30,6 +30,7 @@ export type BatchRecipientMinAggregateOutputType = {
   status: string | null
   errorDetails: string | null
   sentAt: Date | null
+  messageId: string | null
   batchId: string | null
 }
 
@@ -39,6 +40,7 @@ export type BatchRecipientMaxAggregateOutputType = {
   status: string | null
   errorDetails: string | null
   sentAt: Date | null
+  messageId: string | null
   batchId: string | null
 }
 
@@ -49,6 +51,7 @@ export type BatchRecipientCountAggregateOutputType = {
   errorDetails: number
   sentAt: number
   variables: number
+  messageId: number
   batchId: number
   _all: number
 }
@@ -60,6 +63,7 @@ export type BatchRecipientMinAggregateInputType = {
   status?: true
   errorDetails?: true
   sentAt?: true
+  messageId?: true
   batchId?: true
 }
 
@@ -69,6 +73,7 @@ export type BatchRecipientMaxAggregateInputType = {
   status?: true
   errorDetails?: true
   sentAt?: true
+  messageId?: true
   batchId?: true
 }
 
@@ -79,6 +84,7 @@ export type BatchRecipientCountAggregateInputType = {
   errorDetails?: true
   sentAt?: true
   variables?: true
+  messageId?: true
   batchId?: true
   _all?: true
 }
@@ -162,6 +168,7 @@ export type BatchRecipientGroupByOutputType = {
   errorDetails: string | null
   sentAt: Date | null
   variables: runtime.JsonValue | null
+  messageId: string | null
   batchId: string
   _count: BatchRecipientCountAggregateOutputType | null
   _min: BatchRecipientMinAggregateOutputType | null
@@ -193,6 +200,7 @@ export type BatchRecipientWhereInput = {
   errorDetails?: Prisma.StringNullableFilter<"BatchRecipient"> | string | null
   sentAt?: Prisma.DateTimeNullableFilter<"BatchRecipient"> | Date | string | null
   variables?: Prisma.JsonNullableFilter<"BatchRecipient">
+  messageId?: Prisma.StringNullableFilter<"BatchRecipient"> | string | null
   batchId?: Prisma.StringFilter<"BatchRecipient"> | string
   batch?: Prisma.XOR<Prisma.BatchScalarRelationFilter, Prisma.BatchWhereInput>
 }
@@ -204,12 +212,14 @@ export type BatchRecipientOrderByWithRelationInput = {
   errorDetails?: Prisma.SortOrderInput | Prisma.SortOrder
   sentAt?: Prisma.SortOrderInput | Prisma.SortOrder
   variables?: Prisma.SortOrderInput | Prisma.SortOrder
+  messageId?: Prisma.SortOrderInput | Prisma.SortOrder
   batchId?: Prisma.SortOrder
   batch?: Prisma.BatchOrderByWithRelationInput
 }
 
 export type BatchRecipientWhereUniqueInput = Prisma.AtLeast<{
   id?: string
+  messageId?: string
   AND?: Prisma.BatchRecipientWhereInput | Prisma.BatchRecipientWhereInput[]
   OR?: Prisma.BatchRecipientWhereInput[]
   NOT?: Prisma.BatchRecipientWhereInput | Prisma.BatchRecipientWhereInput[]
@@ -220,7 +230,7 @@ export type BatchRecipientWhereUniqueInput = Prisma.AtLeast<{
   variables?: Prisma.JsonNullableFilter<"BatchRecipient">
   batchId?: Prisma.StringFilter<"BatchRecipient"> | string
   batch?: Prisma.XOR<Prisma.BatchScalarRelationFilter, Prisma.BatchWhereInput>
-}, "id">
+}, "id" | "messageId">
 
 export type BatchRecipientOrderByWithAggregationInput = {
   id?: Prisma.SortOrder
@@ -229,6 +239,7 @@ export type BatchRecipientOrderByWithAggregationInput = {
   errorDetails?: Prisma.SortOrderInput | Prisma.SortOrder
   sentAt?: Prisma.SortOrderInput | Prisma.SortOrder
   variables?: Prisma.SortOrderInput | Prisma.SortOrder
+  messageId?: Prisma.SortOrderInput | Prisma.SortOrder
   batchId?: Prisma.SortOrder
   _count?: Prisma.BatchRecipientCountOrderByAggregateInput
   _max?: Prisma.BatchRecipientMaxOrderByAggregateInput
@@ -245,6 +256,7 @@ export type BatchRecipientScalarWhereWithAggregatesInput = {
   errorDetails?: Prisma.StringNullableWithAggregatesFilter<"BatchRecipient"> | string | null
   sentAt?: Prisma.DateTimeNullableWithAggregatesFilter<"BatchRecipient"> | Date | string | null
   variables?: Prisma.JsonNullableWithAggregatesFilter<"BatchRecipient">
+  messageId?: Prisma.StringNullableWithAggregatesFilter<"BatchRecipient"> | string | null
   batchId?: Prisma.StringWithAggregatesFilter<"BatchRecipient"> | string
 }
 
@@ -255,6 +267,7 @@ export type BatchRecipientCreateInput = {
   errorDetails?: string | null
   sentAt?: Date | string | null
   variables?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  messageId?: string | null
   batch: Prisma.BatchCreateNestedOneWithoutRecipientsInput
 }
 
@@ -265,6 +278,7 @@ export type BatchRecipientUncheckedCreateInput = {
   errorDetails?: string | null
   sentAt?: Date | string | null
   variables?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  messageId?: string | null
   batchId: string
 }
 
@@ -275,6 +289,7 @@ export type BatchRecipientUpdateInput = {
   errorDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   variables?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   batch?: Prisma.BatchUpdateOneRequiredWithoutRecipientsNestedInput
 }
 
@@ -285,6 +300,7 @@ export type BatchRecipientUncheckedUpdateInput = {
   errorDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   variables?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   batchId?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
@@ -295,6 +311,7 @@ export type BatchRecipientCreateManyInput = {
   errorDetails?: string | null
   sentAt?: Date | string | null
   variables?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  messageId?: string | null
   batchId: string
 }
 
@@ -305,6 +322,7 @@ export type BatchRecipientUpdateManyMutationInput = {
   errorDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   variables?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type BatchRecipientUncheckedUpdateManyInput = {
@@ -314,6 +332,7 @@ export type BatchRecipientUncheckedUpdateManyInput = {
   errorDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   variables?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   batchId?: Prisma.StringFieldUpdateOperationsInput | string
 }
 
@@ -334,6 +353,7 @@ export type BatchRecipientCountOrderByAggregateInput = {
   errorDetails?: Prisma.SortOrder
   sentAt?: Prisma.SortOrder
   variables?: Prisma.SortOrder
+  messageId?: Prisma.SortOrder
   batchId?: Prisma.SortOrder
 }
 
@@ -343,6 +363,7 @@ export type BatchRecipientMaxOrderByAggregateInput = {
   status?: Prisma.SortOrder
   errorDetails?: Prisma.SortOrder
   sentAt?: Prisma.SortOrder
+  messageId?: Prisma.SortOrder
   batchId?: Prisma.SortOrder
 }
 
@@ -352,6 +373,7 @@ export type BatchRecipientMinOrderByAggregateInput = {
   status?: Prisma.SortOrder
   errorDetails?: Prisma.SortOrder
   sentAt?: Prisma.SortOrder
+  messageId?: Prisma.SortOrder
   batchId?: Prisma.SortOrder
 }
 
@@ -404,6 +426,7 @@ export type BatchRecipientCreateWithoutBatchInput = {
   errorDetails?: string | null
   sentAt?: Date | string | null
   variables?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  messageId?: string | null
 }
 
 export type BatchRecipientUncheckedCreateWithoutBatchInput = {
@@ -413,6 +436,7 @@ export type BatchRecipientUncheckedCreateWithoutBatchInput = {
   errorDetails?: string | null
   sentAt?: Date | string | null
   variables?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  messageId?: string | null
 }
 
 export type BatchRecipientCreateOrConnectWithoutBatchInput = {
@@ -451,6 +475,7 @@ export type BatchRecipientScalarWhereInput = {
   errorDetails?: Prisma.StringNullableFilter<"BatchRecipient"> | string | null
   sentAt?: Prisma.DateTimeNullableFilter<"BatchRecipient"> | Date | string | null
   variables?: Prisma.JsonNullableFilter<"BatchRecipient">
+  messageId?: Prisma.StringNullableFilter<"BatchRecipient"> | string | null
   batchId?: Prisma.StringFilter<"BatchRecipient"> | string
 }
 
@@ -461,6 +486,7 @@ export type BatchRecipientCreateManyBatchInput = {
   errorDetails?: string | null
   sentAt?: Date | string | null
   variables?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  messageId?: string | null
 }
 
 export type BatchRecipientUpdateWithoutBatchInput = {
@@ -470,6 +496,7 @@ export type BatchRecipientUpdateWithoutBatchInput = {
   errorDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   variables?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type BatchRecipientUncheckedUpdateWithoutBatchInput = {
@@ -479,6 +506,7 @@ export type BatchRecipientUncheckedUpdateWithoutBatchInput = {
   errorDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   variables?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 export type BatchRecipientUncheckedUpdateManyWithoutBatchInput = {
@@ -488,6 +516,7 @@ export type BatchRecipientUncheckedUpdateManyWithoutBatchInput = {
   errorDetails?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   sentAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   variables?: Prisma.NullableJsonNullValueInput | runtime.InputJsonValue
+  messageId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
 }
 
 
@@ -499,6 +528,7 @@ export type BatchRecipientSelect<ExtArgs extends runtime.Types.Extensions.Intern
   errorDetails?: boolean
   sentAt?: boolean
   variables?: boolean
+  messageId?: boolean
   batchId?: boolean
   batch?: boolean | Prisma.BatchDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["batchRecipient"]>
@@ -510,6 +540,7 @@ export type BatchRecipientSelectCreateManyAndReturn<ExtArgs extends runtime.Type
   errorDetails?: boolean
   sentAt?: boolean
   variables?: boolean
+  messageId?: boolean
   batchId?: boolean
   batch?: boolean | Prisma.BatchDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["batchRecipient"]>
@@ -521,6 +552,7 @@ export type BatchRecipientSelectUpdateManyAndReturn<ExtArgs extends runtime.Type
   errorDetails?: boolean
   sentAt?: boolean
   variables?: boolean
+  messageId?: boolean
   batchId?: boolean
   batch?: boolean | Prisma.BatchDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["batchRecipient"]>
@@ -532,10 +564,11 @@ export type BatchRecipientSelectScalar = {
   errorDetails?: boolean
   sentAt?: boolean
   variables?: boolean
+  messageId?: boolean
   batchId?: boolean
 }
 
-export type BatchRecipientOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "status" | "errorDetails" | "sentAt" | "variables" | "batchId", ExtArgs["result"]["batchRecipient"]>
+export type BatchRecipientOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "email" | "status" | "errorDetails" | "sentAt" | "variables" | "messageId" | "batchId", ExtArgs["result"]["batchRecipient"]>
 export type BatchRecipientInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   batch?: boolean | Prisma.BatchDefaultArgs<ExtArgs>
 }
@@ -558,6 +591,7 @@ export type $BatchRecipientPayload<ExtArgs extends runtime.Types.Extensions.Inte
     errorDetails: string | null
     sentAt: Date | null
     variables: runtime.JsonValue | null
+    messageId: string | null
     batchId: string
   }, ExtArgs["result"]["batchRecipient"]>
   composites: {}
@@ -989,6 +1023,7 @@ export interface BatchRecipientFieldRefs {
   readonly errorDetails: Prisma.FieldRef<"BatchRecipient", 'String'>
   readonly sentAt: Prisma.FieldRef<"BatchRecipient", 'DateTime'>
   readonly variables: Prisma.FieldRef<"BatchRecipient", 'Json'>
+  readonly messageId: Prisma.FieldRef<"BatchRecipient", 'String'>
   readonly batchId: Prisma.FieldRef<"BatchRecipient", 'String'>
 }
     

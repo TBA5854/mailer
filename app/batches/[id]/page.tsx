@@ -12,11 +12,13 @@ interface RecipientStatus {
   errorDetails?: string;
 }
 
-export default function BatchProgressPage({ params }: { params: Promise<{ id: string }> }) {
+export default function BatchDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+  // Unwrap params using React.use()
   const { id } = use(params);
+  
   const [batch, setBatch] = useState<any>(null);
-  const [recipients, setRecipients] = useState<RecipientStatus[]>([]);
-  const [activeLog, setActiveLog] = useState<string>('READY_TO_EXECUTE...');
+  const [recipients, setRecipients] = useState<any[]>([]);
+  const [activeLog, setActiveLog] = useState<string>("SYSTEM_READY");
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [isStreaming, setIsStreaming] = useState(false);
   const [isAdding, setIsAdding] = useState(false);
@@ -28,19 +30,12 @@ export default function BatchProgressPage({ params }: { params: Promise<{ id: st
   
   const router = useRouter();
 
-  useEffect(() => {
-    // Initial fetch to populate list
-    fetchBatch();
-  }, [id]);
-
   const fetchBatch = async () => {
     const res = await fetch(`/api/batches/${id}`);
     if (res.ok) {
-      const data = await res.json();
-      setBatch(data);
-      if (data.recipients) {
-        setRecipients(data.recipients);
-      }
+        const data = await res.json();
+        setBatch(data);
+        setRecipients(data.recipients || []);
       
       // Extract Required Vars from Template
       if (data.template) {
@@ -49,10 +44,34 @@ export default function BatchProgressPage({ params }: { params: Promise<{ id: st
           let match;
           while ((match = regex.exec(data.template.htmlContent)) !== null) vars.add(match[1]);
           while ((match = regex.exec(data.template.subject)) !== null) vars.add(match[1]);
+          vars.delete('email'); // automated field
           setRequiredVars(Array.from(vars));
       }
     }
   };
+
+  useEffect(() => {
+    fetchBatch();
+    const interval = setInterval(fetchBatch, 5000); // 5s poll for status/bounces
+    
+    // Also poll bounce endpoint explicitly to trigger backend check
+    const bouncePoll = setInterval(async () => {
+        if (!batch?.senderId) return;
+         try {
+             const res = await fetch('/api/bounces/check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ senderId: batch.senderId })
+             });
+             const data = await res.json();
+             if (data.bouncedCount > 0) {
+                 fetchBatch(); // Refresh UI if bounces found
+             }
+         } catch(e) { console.error("Bounce Poll Error", e); }
+    }, 5000);
+
+    return () => { clearInterval(interval); clearInterval(bouncePoll); };
+  }, [id, batch?.senderId]);
 
   const startStreaming = () => {
     if (isStreaming) return;
@@ -68,22 +87,35 @@ export default function BatchProgressPage({ params }: { params: Promise<{ id: st
 
     eventSource.addEventListener('progress', (e: MessageEvent) => {
         const data = JSON.parse(e.data);
+        if (data.status === 'SCANNING_BOUNCES') {
+            setActiveLog("SCANNING_FOR_BOUNCES...");
+            return;
+        }
         
-        setRecipients(prev => prev.map(r => 
-            r.id === data.recipientId 
-                ? { ...r, status: data.status, errorDetails: data.error } 
-                : r
-        ));
-        
-        // Update batch counts optimistically
-        setBatch((prev: any) => ({
-            ...prev,
-            successCount: data.status === 'SENT' ? prev.successCount + 1 : prev.successCount,
-            failureCount: data.status === 'FAILED' ? prev.failureCount + 1 : prev.failureCount
-        }));
-    });
+        setBatch((prev: any) => {
+           if (!prev) return null;
+           const newRecipients = prev.recipients.map((r: any) => 
+               r.id === data.recipientId ? { ...r, status: data.status, errorDetails: data.error } : r
+           );
+           
+           if (data.status === 'SENT') {
+               return { ...prev, successCount: prev.successCount + 1, recipients: newRecipients };
+           } else {
+               return { ...prev, failureCount: prev.failureCount + 1, recipients: newRecipients };
+           }
+        });
+      });
 
-    eventSource.addEventListener('complete', () => {
+      eventSource.addEventListener('bounce_summary', (e: MessageEvent) => {
+          const data = JSON.parse(e.data);
+          // data.updates contains the list. We could update local state or just refetch.
+          // Since it's a bulk update at end, refetching is cleaner but we can optimistically update too.
+          if (data.bouncedCount > 0) {
+              fetchBatch();
+          }
+      });
+      
+      eventSource.addEventListener('complete', () => {
         setActiveLog("Batch sending completed.");
         setIsStreaming(false);
         eventSource.close();
@@ -237,9 +269,22 @@ export default function BatchProgressPage({ params }: { params: Promise<{ id: st
             </GlitchButton>
 
             {(batch.status !== 'COMPLETED' || batch.failureCount > 0) && !isStreaming ? (
-            <GlitchButton onClick={startStreaming}>
-                {batch.status === 'COMPLETED' ? 'RETRY_FAILURES' : 'ENGAGE_TRANSMITTER'}
-            </GlitchButton>
+       <div className="flex flex-col items-end">
+        <div className="flex gap-4">
+             <GlitchButton onClick={startStreaming}>
+                 {batch.status === 'COMPLETED' ? 'RETRY_FAILURES' : 'ENGAGE_TRANSMITTER'}
+             </GlitchButton>
+        </div>
+        
+        {/* Bounce Monitor Status */}
+        <div className="flex items-center gap-2 mt-2 text-xs font-mono text-green-800">
+            <span className="relative flex h-2 w-2">
+               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+            </span>
+            BOUNCE_MONITOR: ACTIVE [AUTO_POLL: 5s]
+        </div>
+       </div>
             ) : (
             <div className={`px-4 py-2 font-mono text-sm border ${isStreaming ? 'border-green-500 text-green-500 animate-pulse' : 'border-green-900 text-green-800'}`}>
                 {isStreaming ? 'TRANSMISSON_ACTIVE...' : batch.status === 'COMPLETED' && batch.failureCount === 0 ? 'MISSION_COMPLETE' : batch.status}
@@ -250,11 +295,9 @@ export default function BatchProgressPage({ params }: { params: Promise<{ id: st
 
       {isAdding && (
           <TerminalPanel title="TARGET_INJECTION_PROTOCOL">
-             {requiredVars.length > 0 && (
-                 <div className="mb-2 p-2 border border-green-800 bg-green-900/20 text-green-400 text-xs font-mono">
-                     REQUIRED_HEADERS: email, {requiredVars.join(', ')}
-                 </div>
-             )}
+              <div className="mb-2 p-2 border border-green-800 bg-green-900/20 text-green-400 text-xs font-mono">
+                  REQUIRED_HEADERS: email{requiredVars.length > 0 ? ', ' + requiredVars.join(', ') : ''}
+              </div>
               <textarea 
                className="w-full px-4 py-2 bg-black border-2 border-green-800 rounded-none focus:border-green-400 outline-none font-mono text-xs h-32 text-green-400 placeholder-green-900 mb-4"
                placeholder={`email, ${requiredVars.length > 0 ? requiredVars.join(', ') : 'name'}\nnewtarget@example.com, Value...`}

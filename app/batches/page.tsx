@@ -38,10 +38,15 @@ export default function BatchesPage() {
     const vars = new Set<string>();
     let match;
     while ((match = regex.exec(template.htmlContent)) !== null) {
-      vars.add(match[1]);
+      vars.add(match[1].trim());
     }
+    // Reset regex usage or creating new one is safer if reusing sticky/global but exec loop auto-resets on null. 
+    // However, regex state is per-instance. Let's just create a new one to be paranoid or reset lastIndex manually if we used the same one.
+    // Actually in the original code we reused 'regex'. 
+    // The previous loop exited only when match === null, so lastIndex is 0. It is safe to reuse.
+    
     while ((match = regex.exec(template.subject)) !== null) {
-        vars.add(match[1]);
+        vars.add(match[1].trim());
     }
     setRequiredVars(Array.from(vars));
   }, [selectedTemplateId, templates]);

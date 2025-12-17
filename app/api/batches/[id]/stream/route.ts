@@ -4,6 +4,7 @@ import { authOptions } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { decrypt } from "@/lib/crypto";
 import nodemailer from "nodemailer";
+import { checkBounces } from "@/lib/bounces";
 
 export const dynamic = 'force-dynamic';
 
@@ -82,17 +83,25 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
                 });
 
                 // Send
-                await transporter.sendMail({
+                const info = await transporter.sendMail({
                     from: `"${batch.sender.label || batch.sender.email}" <${batch.sender.email}>`,
                     to: recipient.email,
                     subject: subject,
                     html: html,
                 });
 
-                // Update DB
+                if (info.rejected.length > 0) {
+                     throw new Error(`SMTP Rejected: ${info.response || 'Unknown error'}`);
+                }
+
+                // Update DB (SUCCESS)
                 await prisma.batchRecipient.update({
                     where: { id: recipient.id },
-                    data: { status: 'SENT', sentAt: new Date() }
+                    data: { 
+                        status: 'SENT', 
+                        sentAt: new Date(),
+                        messageId: info.messageId // Save Message-ID for bounce matching
+                    }
                 });
 
                 await prisma.batch.update({
@@ -107,10 +116,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
                 });
 
             } catch (err: any) {
+                // Capture detailed Nodemailer error info
+                const errorInfo = [
+                    err.code ? `[${err.code}]` : '',
+                    err.message,
+                    err.response ? `Response: ${err.response}` : '',
+                    err.command ? `Command: ${err.command}` : ''
+                ].filter(Boolean).join(' | ');
+
                 // Update DB Error
                 await prisma.batchRecipient.update({
                     where: { id: recipient.id },
-                    data: { status: 'FAILED', errorDetails: err.message }
+                    data: { status: 'FAILED', errorDetails: errorInfo || err.message }
                 });
                 
                 await prisma.batch.update({
@@ -128,6 +145,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
         }
 
         await prisma.batch.update({ where: { id: batchId }, data: { status: 'COMPLETED' } });
+        
+        // Auto-Check Bounces after completion
+        sendEvent('progress', { status: 'SCANNING_BOUNCES' });
+        try {
+            const bounceResult = await checkBounces(batch.senderId);
+            if (bounceResult.bouncedCount > 0) {
+                 sendEvent('bounce_summary', bounceResult);
+            }
+        } catch (e) {
+            console.error("Auto-Bounce Check Failed", e);
+        }
+
         sendEvent('complete', { message: 'All processed' });
         controller.close();
 

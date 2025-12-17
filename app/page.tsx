@@ -14,7 +14,7 @@ export default async function Home() {
       {/* Hero Section */}
       <section className="text-center py-20 relative">
         <h1 className="text-6xl font-black tracking-widest mb-4 animate-pulse">
-            _CYBER_MAILER_
+            _TBA_MAILER_
         </h1>
         <p className="text-xl text-green-700 max-w-2xl mx-auto font-mono uppercase">
             [SECURE_CHANNEL_ESTABLISHED] <br/>
