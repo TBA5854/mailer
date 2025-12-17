@@ -1,0 +1,121 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../lib/generated"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String?
+  email         String?   @unique
+  emailVerified DateTime?
+  image         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  
+  senders       Sender[]
+  templates     Template[]
+  batches       Batch[]
+  accounts      Account[]
+  sessions      Session[]
+}
+
+model Account {
+  id                 String  @id @default(cuid())
+  userId             String
+  type               String
+  provider           String
+  providerAccountId  String
+  refresh_token      String?
+  access_token       String?
+  expires_at         Int?
+  token_type         String?
+  scope              String?
+  id_token           String?
+  session_state      String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+model Sender {
+  id                   String   @id @default(cuid())
+  email                String
+  label                String?
+  encryptedAppPassword String
+  iv                   String
+  createdAt            DateTime @default(now())
+  updatedAt            DateTime @updatedAt
+  
+  ownerId              String
+  owner                User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  batches              Batch[]
+
+  @@unique([ownerId, email])
+}
+
+model Template {
+  id          String   @id @default(cuid())
+  name        String
+  subject     String
+  htmlContent String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  ownerId     String
+  owner       User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  batches     Batch[]
+}
+
+model Batch {
+  id              String   @id @default(cuid())
+  status          String   @default("PENDING") // PENDING, PROCESSING, COMPLETED, PAUSED, FAILED
+  totalRecipients Int      @default(0)
+  successCount    Int      @default(0)
+  failureCount    Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  senderId        String
+  sender          Sender   @relation(fields: [senderId], references: [id])
+  
+  templateId      String
+  template        Template @relation(fields: [templateId], references: [id])
+  
+  ownerId         String
+  owner           User     @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+
+  recipients      BatchRecipient[]
+}
+
+model BatchRecipient {
+  id           String   @id @default(cuid())
+  email        String
+  status       String   @default("PENDING") // PENDING, SENT, FAILED
+  errorDetails String?
+  sentAt       DateTime?
+  variables    Json?
+  
+  batchId      String
+  batch        Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+}

@@ -1,26 +1,61 @@
 @import "tailwindcss";
 
+@theme {
+  --color-background: #000000;
+  --color-foreground: #00ff41;
+  --color-primary: #00ff41;
+  --color-secondary: #008f11;
+  --color-alert: #ff0000;
+  --font-sans: var(--font-mono);
+  /* Force Mono everywhere */
+  --font-mono: var(--font-mono);
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #000000;
+  --foreground: #00ff41;
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-mono);
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar - Terminal Style */
+::-webkit-scrollbar {
+  width: 12px;
+  background: #000;
+  border-left: 1px solid #003300;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #00ff41;
+  border: 2px solid #000;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #00cc33;
+}
+
+/* Selection */
+::selection {
+  background: #00ff41;
+  color: black;
+}
+
+/* CRT Scanline Effect */
+body::before {
+  content: " ";
+  display: block;
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  z-index: 9999;
+  background-size: 100% 2px, 3px 100%;
+  pointer-events: none;
 }
