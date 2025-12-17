@@ -41,7 +41,7 @@ function Scene() {
 }
 
 function InfiniteLandscape() {
-    const gridRef = useRef<any>(null);
+    const gridRef = useRef<THREE.Group>(null);
     
     // Grid settings
     // Size: Large enough to cover view
@@ -75,6 +75,7 @@ function InfiniteLandscape() {
 export default function CyberBackground() {
   const [mounted, setMounted] = useState(false);
   
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { setMounted(true); }, []);
 
   if (!mounted) return <div className="fixed inset-0 bg-black -z-50" />;

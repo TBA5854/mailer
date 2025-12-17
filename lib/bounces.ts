@@ -124,9 +124,9 @@ export async function checkBounces(senderId: string): Promise<BounceResult> {
 
         return { bouncedCount, updates };
         
-    } catch (error: any) {
+    } catch (error) {
         console.error("IMAP Error:", error);
-        return { bouncedCount, updates, error: error.message };
+        return { bouncedCount, updates, error: (error as Error).message };
     } finally {
         if (connection) {
             connection.end();
